@@ -1,0 +1,98 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+# something like 'column -t'.  But not too much.
+
+# ASSUMPTIONS:
+# - there are no hard tabs in the file
+# - indent on first line is a multiple of 4
+
+# ----------------------------------------------------------------------
+
+sub dd {
+    use Data::Dumper;
+    for my $i (@_) {
+        print STDERR "DBG: " . Dumper($i);
+    }
+}
+
+my $li;     # lead indent
+my @fls;    # field lengths
+my @lines;  # lines
+
+while (<>) {
+    chomp;
+    $li //= $1 if s/^( *)//;
+    push @lines, $_;
+
+    lengths($_) if /  /;    # reads and sets @fls
+}
+
+adj_fls();                  # 2-space buffer, then next tab stop
+out();                      # print per new field lengths
+
+# ----------------------------------------------------------------------
+
+sub lengths {
+    my $line = shift;
+
+    # get the field lengths
+    my @lens = map { length($_) } split( /  +/, $line );
+    # but the first line should have a different set of field lengths
+    @lens = map { length($_) } split( /  (?=\S)/, $line ) unless @fls;
+
+    my $i = 0;
+    pop @lens;  # we don't want the last field influencing anything
+    for my $len (@lens) {
+        $fls[$i] = $len if $len > ( $fls[$i] || 0 );
+        $i++;
+    }
+
+}
+
+sub adj_fls {
+    my $p = 0;
+    for (@fls) {
+        $_ += 2;    # we need a buffer of 2 spaces
+                    # then if this is not a multiple of 4, bump it up
+        my $rem = $_ % 4;
+        $_ += 4 - $rem if $rem;
+    }
+}
+
+sub out {
+    for (@lines) {
+
+        # empty line?  no trailing spaces please!
+        if ( not /./ ) {
+            print "\n";
+            next;
+        }
+
+        my @s = split( /  +/, $_ );
+
+        # only one field?  no column-ising please!
+        if ( @s <= 1 ) {
+            print $li . "$_\n";
+            next;
+        }
+
+        # pad and print
+        my $i = 0;
+        for (@s) {
+            $_ = pad( $_, $fls[$i] )
+              unless $i == $#s;    # else you get trailing spaces, uggh!
+            $i++;
+        }
+        print $li;
+        print join "", @s;
+        print "\n";
+    }
+}
+
+sub pad {
+    my ( $s, $l ) = @_;
+    $s .= " " x ( $l - length($s) );
+    return $s;
+}

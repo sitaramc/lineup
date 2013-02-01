@@ -1,0 +1,95 @@
+# lineup -- lineup columns
+
+lineup is a bit like `column -t`, but different.
+
+TOC
+
+----
+
+## warnings
+
+  * we don't play well with hard tabs
+  * we assume the indent on first line is a multiple of 4
+
+## example
+
+Here's a snippet from my squid.conf:
+
+    # memory and disk usage
+    cache_mem 64 MB
+    maximum_object_size 16384 KB
+    cache_dir aufs /squid-cache 3600 16 256
+
+    # logging locations and type of log
+    cache_log /var/log/squid/cache.log
+    useragent_log /var/log/squid/useragents.log
+    emulate_httpd_log on
+
+    # user privacy settings
+    forwarded_for off
+    strip_query_terms on
+    hierarchy_stoplist cgi-bin ?
+
+I wanted these things lined up a bit better.  The usual answer to that is
+"column -t".  Let's see what that does:
+
+    #                    memory                         and           disk      usage
+    cache_mem            64                             MB
+    maximum_object_size  16384                          KB
+    cache_dir            aufs                           /squid-cache  3600      16     256
+    #                    logging                        locations     and       type   of   log
+    cache_log            /var/log/squid/cache.log
+    useragent_log        /var/log/squid/useragents.log
+    emulate_httpd_log    on
+    #                    user                           privacy       settings
+    forwarded_for        off
+    strip_query_terms    on
+    hierarchy_stoplist   cgi-bin                        ?
+
+**Uggghhh!!**  Apart from things it cannot help (like using even a single
+space as a separator and so causing all the comments to look really... spaced
+out (pun intended)), it does other stupid things that it need not.  Like
+deleting all the blank lines.  And -- although you can't see it here --
+deleting all leading indentation.
+
+So what does lineup do?  Well, lineup believes that it takes TWO spaces to
+separate fields, so you start by separating the first word from the rest.
+(Manually if you like, although I just visually highlighted the lines in vim
+and typed `:v/^#/s/ /  /`).  Once you do that, run it through "lineup" and
+this is what you get:
+
+    # memory and disk usage
+    cache_mem               64 MB
+    maximum_object_size     16384 KB
+    cache_dir               aufs /squid-cache 3600 16 256
+
+    # logging locations and type of log
+    cache_log               /var/log/squid/cache.log
+    useragent_log           /var/log/squid/useragents.log
+    emulate_httpd_log       on
+
+    # user privacy settings
+    forwarded_for           off
+    strip_query_terms       on
+    hierarchy_stoplist      cgi-bin ?
+
+Notice the obvious differences?  Blank lines are preserved.  A line with only
+one field (like the comment lines) stays as is.  And again, though you cannot
+see it here, leading indentation is preserved.
+
+## details
+
+Anyway, here are the differences from 'column -t':
+
+  * a fixed separator -- 2 or more spaces starts a new field.
+  * the leading indent is taken from the first line; we don't make everything
+    flush left like 'column -t' does.
+  * the field widths of the first line are considered to be minimum widths.
+    The table can go wider but not narrower.
+  * the last field in a line does not contribute to the minimum field length
+    -- i.e., it can be arbitrarily long and all the other lines won't suddenly
+    develop a huge gap in those columns!
+  * empty lines are preserved.
+  * a line with only one field is left as is (except leading indent
+    adjustment) and does not contribute to the minimum field width settings.
+    This allows comment lines to be used.
